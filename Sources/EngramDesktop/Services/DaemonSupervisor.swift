@@ -20,8 +20,9 @@ public final class DaemonSupervisor: ObservableObject {
 
     public func findEngramPath() -> String? {
         let candidates = [
-            "/usr/local/bin/engram",
+            ("/Users/ari/Ash/engram/.venv/bin/engram" as NSString).expandingTildeInPath,
             ("/Users/ari/.local/bin/engram" as NSString).expandingTildeInPath,
+            "/usr/local/bin/engram",
             ("/Users/ari/Library/Python/3.11/bin/engram" as NSString).expandingTildeInPath,
             ("/Users/ari/Library/Python/3.12/bin/engram" as NSString).expandingTildeInPath,
             ("/Users/ari/Library/Python/3.13/bin/engram" as NSString).expandingTildeInPath,

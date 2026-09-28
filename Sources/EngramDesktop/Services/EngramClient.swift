@@ -8,7 +8,7 @@ public actor EngramClient {
     }
 
     public func fetchStatus() async throws -> EngramStats {
-        let url = baseURL.appendingPathComponent("api/status")
+        let url = baseURL.appendingPathComponent("api/health")
         var request = URLRequest(url: url)
         request.timeoutInterval = 2.0
 
@@ -17,50 +17,68 @@ public actor EngramClient {
             throw URLError(.badServerResponse)
         }
 
-        // Try decoding as full stats, or fallback to status envelope
-        if let stats = try? JSONDecoder().decode(EngramStats.self, from: data) {
-            return stats
-        }
-
-        struct StatusEnvelope: Decodable {
-            let status: String?
-            let memoryCount: Int?
-            let entityCount: Int?
-            let relationshipCount: Int?
+        struct HealthPayload: Decodable {
+            struct Memories: Decodable {
+                let procedural: Int?
+                let narrative: Int?
+                let episodic: Int?
+                let semantic: Int?
+                let codebase: Int?
+                let total: Int?
+            }
+            let memories: Memories?
+            let entities: Int?
+            let relationships: Int?
+            let dbSizeMb: Double?
             let version: String?
 
             enum CodingKeys: String, CodingKey {
-                case status
-                case memoryCount = "memory_count"
-                case entityCount = "entity_count"
-                case relationshipCount = "relationship_count"
+                case memories
+                case entities
+                case relationships
+                case dbSizeMb = "db_size_mb"
                 case version
             }
         }
 
-        let envelope = try JSONDecoder().decode(StatusEnvelope.self, from: data)
+        let payload = try JSONDecoder().decode(HealthPayload.self, from: data)
+        let totalMemories = payload.memories?.total ?? 0
+        let entityCount = payload.entities ?? 0
+        let relationshipCount = payload.relationships ?? 0
+
+        var layerCounts: [String: Int] = [:]
+        if let mems = payload.memories {
+            layerCounts["procedural"] = mems.procedural ?? 0
+            layerCounts["episodic"] = mems.episodic ?? 0
+            layerCounts["semantic"] = mems.semantic ?? 0
+            layerCounts["narrative"] = mems.narrative ?? 0
+            layerCounts["codebase"] = mems.codebase ?? 0
+        }
+
         return EngramStats(
-            memoryCount: envelope.memoryCount ?? 0,
-            entityCount: envelope.entityCount ?? 0,
-            relationshipCount: envelope.relationshipCount ?? 0,
-            layerCounts: [:],
+            memoryCount: totalMemories,
+            entityCount: entityCount,
+            relationshipCount: relationshipCount,
+            layerCounts: layerCounts,
             port: 8420,
-            version: envelope.version ?? "0.8.1"
+            version: payload.version ?? "0.8.1"
         )
     }
 
     public func search(query: String, topK: Int = 5) async throws -> [MemorySearchResult] {
-        let url = baseURL.appendingPathComponent("api/search")
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 5.0
-
-        let payload: [String: Any] = [
-            "query": query,
-            "top_k": topK
+        var components = URLComponents(url: baseURL.appendingPathComponent("api/search"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "q", value: query),
+            URLQueryItem(name: "top_k", value: String(topK))
         ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        guard let targetURL = components.url else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: targetURL)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 5.0
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
@@ -68,7 +86,6 @@ public actor EngramClient {
         }
 
         struct SearchResponse: Decodable {
-            let status: String
             let results: [MemorySearchResult]?
         }
 
