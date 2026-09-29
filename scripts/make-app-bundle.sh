@@ -63,4 +63,9 @@ PLIST
 echo "Signing bundle..."
 codesign --force --deep -s - "$APP"
 
+ZIP="$ROOT/dist/Engram-$VERSION-$ARCH.zip"
+echo "Creating zip archive: $ZIP..."
+/usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+
 echo "Successfully built: $APP"
+echo "Zip archive:        $ZIP"
