@@ -21,12 +21,13 @@ public struct MenuBarPopoverView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             // Status Header
             HStack(spacing: 10) {
                 EngramLogoView(size: 24)
+                    .frame(width: 24, height: 24)
 
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Circle()
                             .fill(statusColor)
@@ -40,14 +41,16 @@ public struct MenuBarPopoverView: View {
                         Text("\(stats.memoryCount) memories • \(stats.entityCount) entities")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
                     } else {
                         Text("127.0.0.1:8420")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
                     }
                 }
 
-                Spacer()
+                Spacer(minLength: 8)
 
                 if supervisor.state == .running {
                     Button("restart") {
@@ -73,99 +76,112 @@ public struct MenuBarPopoverView: View {
             Divider()
 
             // Quick Actions
-            VStack(spacing: 6) {
-                Button(action: onOpenHUD) {
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                        Text("quick recall")
-                        Spacer()
-                        Text("⌘⇧M")
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .padding(.vertical, 4)
+            VStack(spacing: 2) {
+                menuRow(
+                    icon: "magnifyingglass",
+                    title: "quick recall",
+                    shortcut: "⌘⇧M",
+                    action: onOpenHUD
+                )
 
-                Button(action: {
-                    if let url = URL(string: "http://127.0.0.1:8420") {
-                        NSWorkspace.shared.open(url)
+                menuRow(
+                    icon: "safari",
+                    title: "open web dashboard",
+                    action: {
+                        if let url = URL(string: "http://127.0.0.1:8420") {
+                            NSWorkspace.shared.open(url)
+                        }
                     }
-                }) {
-                    HStack {
-                        Image(systemName: "safari")
-                        Text("open web dashboard")
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .padding(.vertical, 4)
+                )
             }
 
             Divider()
 
             // Secondary Utilities
-            VStack(spacing: 6) {
-                Button(action: onOpenWiring) {
-                    HStack {
-                        Image(systemName: "puzzlepiece.extension")
-                        Text("agent integrations")
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .padding(.vertical, 4)
+            VStack(spacing: 2) {
+                menuRow(
+                    icon: "puzzlepiece.extension",
+                    title: "agent integrations",
+                    action: onOpenWiring
+                )
 
-                Button(action: onOpenSync) {
-                    HStack {
-                        Image(systemName: "lock.shield")
-                        Text("zero-knowledge sync")
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .padding(.vertical, 4)
+                menuRow(
+                    icon: "lock.shield",
+                    title: "zero-knowledge sync",
+                    action: onOpenSync
+                )
 
-                Button(action: onOpenLogs) {
-                    HStack {
-                        Image(systemName: "terminal")
-                        Text("daemon logs")
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .padding(.vertical, 4)
+                menuRow(
+                    icon: "terminal",
+                    title: "daemon logs",
+                    action: onOpenLogs
+                )
             }
 
             Divider()
 
-            // Quit
-            HStack {
-                Button(action: {
-                    NSApplication.shared.terminate(nil)
-                }) {
-                    Text("quit engram")
-                        .font(.system(size: 11))
+            // Footer / Quit
+            Button(action: {
+                NSApplication.shared.terminate(nil)
+            }) {
+                HStack(spacing: 10) {
+                    Image(systemName: "power")
+                        .font(.system(size: 12))
+                        .frame(width: 18, height: 18, alignment: .center)
                         .foregroundColor(.secondary)
+
+                    Text("quit engram")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    if let stats = supervisor.stats {
+                        Text("v\(stats.version)")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .frame(width: 290)
+    }
+
+    private func menuRow(
+        icon: String,
+        title: String,
+        shortcut: String? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 13))
+                    .frame(width: 18, height: 18, alignment: .center)
+                    .foregroundColor(.primary)
+
+                Text(title)
+                    .font(.system(size: 13))
+                    .foregroundColor(.primary)
 
                 Spacer()
 
-                if let stats = supervisor.stats {
-                    Text("v\(stats.version)")
-                        .font(.system(size: 10))
+                if let shortcut = shortcut {
+                    Text(shortcut)
+                        .font(.system(size: 10, design: .monospaced))
                         .foregroundColor(.secondary)
                 }
             }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
         }
-        .padding(12)
-        .frame(width: 260)
+        .buttonStyle(.plain)
     }
 
     private var statusColor: Color {
