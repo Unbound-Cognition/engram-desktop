@@ -27,7 +27,20 @@ detects installed agent harnesses and registers engram as an mcp server automati
 no manual editing of nested json config files.
 
 ### quick recall hud
-hit the global shortcut to bring up a floating search bar. runs 5-channel hybrid retrieval across your episodic, semantic, and procedural memories with instant preview and copy.
+hit `⌘⇧M` (or click recall hud) to bring up a floating search bar. runs 5-channel hybrid retrieval across your episodic, semantic, and procedural memories with instant preview and copy.
+
+### zero-knowledge sync
+monitor local ChaCha20-Poly1305 sync key status, check Lamport sequence numbers, add/remove peer nodes, and trigger encrypted peer-to-peer replication passes directly from the menu bar.
+
+## install
+
+download the latest signed release from [github releases](https://github.com/Unbound-Cognition/engram-desktop/releases/latest):
+
+```bash
+# unzip and move to Applications
+unzip Engram-0.1.2-arm64.zip
+mv Engram.app /Applications/
+```
 
 ## building
 
