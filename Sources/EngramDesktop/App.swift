@@ -74,7 +74,9 @@ final class WindowManager {
             panel.titleVisibility = .hidden
             panel.titlebarAppearsTransparent = true
             panel.isMovableByWindowBackground = true
-            panel.contentView = NSHostingView(rootView: QuickRecallHUDView())
+            panel.contentView = NSHostingView(rootView: QuickRecallHUDView(onClose: { [weak self] in
+                self?.hudWindow?.orderOut(nil)
+            }))
             self.hudWindow = panel
         }
 

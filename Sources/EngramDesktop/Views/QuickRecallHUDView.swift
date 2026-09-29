@@ -1,34 +1,50 @@
 import SwiftUI
 
 public struct QuickRecallHUDView: View {
+    public var onClose: () -> Void
+
     @State private var query: String = ""
+    @State private var selectedLayer: String = "all"
     @State private var results: [MemorySearchResult] = []
     @State private var isLoading: Bool = false
     @State private var errorMessage: String? = nil
     @State private var copiedId: String? = nil
+    @State private var searchDurationMs: Double? = nil
+    @State private var searchTask: Task<Void, Never>? = nil
 
     private let client = EngramClient(port: 8420)
+    private let layers = ["all", "procedural", "semantic", "episodic", "codebase"]
 
-    public init() {}
+    public init(onClose: @escaping () -> Void = {}) {
+        self.onClose = onClose
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
             // Search Bar Header
             HStack(spacing: 12) {
                 EngramLogoView(size: 22)
+                    .frame(width: 22, height: 22)
 
                 TextField("recall context, decisions, procedures, or facts...", text: $query)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 16))
+                    .font(.system(size: 15))
                     .onSubmit {
-                        performSearch()
+                        triggerImmediateSearch()
+                    }
+                    .onChange(of: query) { oldValue, newValue in
+                        scheduleDebouncedSearch(newValue)
                     }
 
                 if isLoading {
                     ProgressView()
-                        .scaleEffect(0.7)
+                        .scaleEffect(0.65)
                 } else if !query.isEmpty {
-                    Button(action: { query = ""; results = [] }) {
+                    Button(action: {
+                        query = ""
+                        results = []
+                        searchDurationMs = nil
+                    }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.secondary)
                     }
@@ -36,7 +52,39 @@ public struct QuickRecallHUDView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.vertical, 12)
+            .background(Color(NSColor.windowBackgroundColor))
+
+            // Layer Filter Pills
+            HStack(spacing: 6) {
+                ForEach(layers, id: \.self) { layer in
+                    Button(action: {
+                        selectedLayer = layer
+                        triggerImmediateSearch()
+                    }) {
+                        Text(layer)
+                            .font(.system(size: 11, weight: selectedLayer == layer ? .semibold : .regular))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 3)
+                            .background(
+                                selectedLayer == layer
+                                    ? layerColor(layer).opacity(0.18)
+                                    : Color(NSColor.controlBackgroundColor)
+                            )
+                            .foregroundColor(
+                                selectedLayer == layer
+                                    ? layerColor(layer)
+                                    : .secondary
+                            )
+                            .cornerRadius(12)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
             .background(Color(NSColor.windowBackgroundColor))
 
             Divider()
@@ -76,13 +124,24 @@ public struct QuickRecallHUDView: View {
 
             // Footer
             HStack {
-                Text("\(results.count) results")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 8) {
+                    Text("\(results.count) results")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    if let ms = searchDurationMs {
+                        Text("•")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Text(String(format: "%.0f ms", ms))
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                }
 
                 Spacer()
 
-                Text("press return to search • esc to close")
+                Text("live hybrid recall • esc to close")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -91,6 +150,9 @@ public struct QuickRecallHUDView: View {
             .background(Color(NSColor.controlBackgroundColor))
         }
         .frame(width: 580, height: 420)
+        .onExitCommand {
+            onClose()
+        }
     }
 
     private func resultCard(_ item: MemorySearchResult) -> some View {
@@ -165,20 +227,48 @@ public struct QuickRecallHUDView: View {
         case "episodic": return .green
         case "working": return .orange
         case "codebase": return .indigo
-        default: return .gray
+        default: return Color(red: 0.85, green: 0.60, blue: 0.47)
         }
     }
 
+    private func scheduleDebouncedSearch(_ text: String) {
+        searchTask?.cancel()
+        let clean = text.trimmingCharacters(in: .whitespaces)
+        guard !clean.isEmpty else {
+            results = []
+            searchDurationMs = nil
+            return
+        }
+
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 200_000_000) // 200ms debounce
+            if !Task.isCancelled {
+                performSearch()
+            }
+        }
+    }
+
+    private func triggerImmediateSearch() {
+        searchTask?.cancel()
+        performSearch()
+    }
+
     private func performSearch() {
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        let clean = query.trimmingCharacters(in: .whitespaces)
+        guard !clean.isEmpty else { return }
         isLoading = true
         errorMessage = nil
 
+        let startTime = CFAbsoluteTimeGetCurrent()
+        let layerParam = selectedLayer == "all" ? nil : selectedLayer
+
         Task {
             do {
-                let res = try await client.search(query: query, topK: 8)
+                let res = try await client.search(query: clean, topK: 8, layer: layerParam)
+                let elapsedMs = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
                 await MainActor.run {
                     self.results = res
+                    self.searchDurationMs = elapsedMs
                     self.isLoading = false
                 }
             } catch {

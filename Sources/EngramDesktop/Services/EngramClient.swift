@@ -65,12 +65,16 @@ public actor EngramClient {
         )
     }
 
-    public func search(query: String, topK: Int = 5) async throws -> [MemorySearchResult] {
+    public func search(query: String, topK: Int = 5, layer: String? = nil) async throws -> [MemorySearchResult] {
         var components = URLComponents(url: baseURL.appendingPathComponent("api/search"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
+        var items = [
             URLQueryItem(name: "q", value: query),
             URLQueryItem(name: "top_k", value: String(topK))
         ]
+        if let layer = layer, layer != "all" {
+            items.append(URLQueryItem(name: "layer", value: layer))
+        }
+        components.queryItems = items
 
         guard let targetURL = components.url else {
             throw URLError(.badURL)
