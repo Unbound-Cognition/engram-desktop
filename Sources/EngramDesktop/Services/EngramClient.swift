@@ -97,12 +97,24 @@ public actor EngramClient {
         public let status: String
         public let deviceId: String
         public let sequence: Int
+        public let peers: [String]?
+        public let hasKey: Bool?
 
         enum CodingKeys: String, CodingKey {
             case status
             case deviceId = "device_id"
             case sequence
+            case peers
+            case hasKey = "has_key"
         }
+    }
+
+    public struct SyncTriggerResponse: Decodable, Sendable {
+        public let status: String
+        public let pulled: Int?
+        public let pushed: Int?
+        public let message: String?
+        public let errors: [String]?
     }
 
     public func fetchSyncStatus() async throws -> SyncStatus {
@@ -114,5 +126,34 @@ public actor EngramClient {
             throw URLError(.badServerResponse)
         }
         return try JSONDecoder().decode(SyncStatus.self, from: data)
+    }
+
+    public func triggerSync() async throws -> SyncTriggerResponse {
+        let url = baseURL.appendingPathComponent("api/sync/trigger")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15.0
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode(SyncTriggerResponse.self, from: data)
+    }
+
+    public func updatePeer(peer: String, action: String) async throws -> [String] {
+        let url = baseURL.appendingPathComponent("api/sync/peers")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 5.0
+        let payload = ["peer": peer, "action": action]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        struct PeerResp: Decodable { let peers: [String] }
+        let decoded = try JSONDecoder().decode(PeerResp.self, from: data)
+        return decoded.peers
     }
 }

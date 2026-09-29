@@ -105,7 +105,7 @@ final class WindowManager {
     func showSync() {
         if syncWindow == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 440, height: 280),
+                contentRect: NSRect(x: 0, y: 0, width: 440, height: 380),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
