@@ -5,15 +5,18 @@ public struct MenuBarPopoverView: View {
     @ObservedObject var supervisor = DaemonSupervisor.shared
     public var onOpenHUD: () -> Void
     public var onOpenWiring: () -> Void
+    public var onOpenSync: () -> Void
     public var onOpenLogs: () -> Void
 
     public init(
         onOpenHUD: @escaping () -> Void = {},
         onOpenWiring: @escaping () -> Void = {},
+        onOpenSync: @escaping () -> Void = {},
         onOpenLogs: @escaping () -> Void = {}
     ) {
         self.onOpenHUD = onOpenHUD
         self.onOpenWiring = onOpenWiring
+        self.onOpenSync = onOpenSync
         self.onOpenLogs = onOpenLogs
     }
 
@@ -109,6 +112,17 @@ public struct MenuBarPopoverView: View {
                     HStack {
                         Image(systemName: "puzzlepiece.extension")
                         Text("agent integrations")
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .padding(.vertical, 4)
+
+                Button(action: onOpenSync) {
+                    HStack {
+                        Image(systemName: "lock.shield")
+                        Text("zero-knowledge sync")
                         Spacer()
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

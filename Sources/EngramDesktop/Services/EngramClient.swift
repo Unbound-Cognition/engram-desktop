@@ -92,4 +92,27 @@ public actor EngramClient {
         let decoded = try JSONDecoder().decode(SearchResponse.self, from: data)
         return decoded.results ?? []
     }
+
+    public struct SyncStatus: Decodable, Sendable {
+        public let status: String
+        public let deviceId: String
+        public let sequence: Int
+
+        enum CodingKeys: String, CodingKey {
+            case status
+            case deviceId = "device_id"
+            case sequence
+        }
+    }
+
+    public func fetchSyncStatus() async throws -> SyncStatus {
+        let url = baseURL.appendingPathComponent("api/sync/status")
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 2.0
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode(SyncStatus.self, from: data)
+    }
 }

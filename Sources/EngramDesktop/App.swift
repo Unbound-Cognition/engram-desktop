@@ -11,6 +11,7 @@ struct EngramDesktopApp: App {
             MenuBarPopoverView(
                 onOpenHUD: { WindowManager.shared.showHUD() },
                 onOpenWiring: { WindowManager.shared.showWiring() },
+                onOpenSync: { WindowManager.shared.showSync() },
                 onOpenLogs: { WindowManager.shared.showLogs() }
             )
         } label: {
@@ -49,6 +50,7 @@ final class WindowManager {
 
     private var hudWindow: NSPanel?
     private var wiringWindow: NSWindow?
+    private var syncWindow: NSWindow?
     private var logWindow: NSWindow?
 
     func toggleHUD() {
@@ -97,6 +99,24 @@ final class WindowManager {
 
         wiringWindow?.center()
         wiringWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func showSync() {
+        if syncWindow == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 440, height: 280),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "Zero-Knowledge Sync"
+            window.contentView = NSHostingView(rootView: SyncView())
+            self.syncWindow = window
+        }
+
+        syncWindow?.center()
+        syncWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
